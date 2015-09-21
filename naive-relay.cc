@@ -4,25 +4,20 @@
 #include <assert.h>
 #include "deps/libuv/include/uv.h"
 #include "naive-relay.h"
+#include "connection.h"
 
 #define DEFAULT_BACKLOG 128
 
 namespace tchannel {
 
-void on_new_connection(uv_stream_t *server, int status) {
-    assert(status >= 0 && "libuv incoming connection error");
-
-    tchannel::NaiveRelay *relay;
-    relay = (tchannel::NaiveRelay*) server->data;
-
-    relay->onNewConnection();
-}
+static void on_connection_cb(uv_stream_t *server, int status);
 
 NaiveRelay::NaiveRelay(uv_loop_t *loop) {
     this->loop = loop;
+    strncpy(this->hostPort, "", 128);
+
     this->server = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
     this->server->data = (void*) this;
-    strncpy(this->hostPort, "", 128);
 }
 
 NaiveRelay::~NaiveRelay() {
@@ -45,24 +40,27 @@ void NaiveRelay::listen(int serverPort, const char *serverHost) {
     r = uv_tcp_bind(this->server, (struct sockaddr*) &serverAddress, 0);
     assert(!r && "could not bind to server socket");
 
-    r = uv_listen((uv_stream_t*) this->server, DEFAULT_BACKLOG, on_new_connection);
+    r = uv_listen((uv_stream_t*) this->server, DEFAULT_BACKLOG, on_connection_cb);
     assert(!r && "could not listen to tcp server");
 }
 
 void NaiveRelay::onNewConnection() {
-    int r;
+    tchannel::RelayConnection *conn;
 
-    uv_tcp_t *client = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
-    uv_tcp_init(this->loop, client);
+    // TODO free connection
+    conn = new tchannel::RelayConnection(this->loop, this, "in");
 
-    r = uv_accept((uv_stream_t*) this->server, (uv_stream_t*) client);
-    if (r) {
-        fprintf(stderr, "Could not accept socket %d", r);
-        uv_close((uv_handle_t*) client, NULL);
-        // free(client)
-    } else {
-        fprintf(stderr, "Got incoming socket\n");
-    }
+    conn->accept((uv_stream_t*) this->server);
+    conn->readStart();
+}
+
+static void on_connection_cb(uv_stream_t *server, int status) {
+    assert(status >= 0 && "libuv incoming connection error");
+
+    tchannel::NaiveRelay *relay;
+    relay = (tchannel::NaiveRelay*) server->data;
+
+    relay->onNewConnection();
 }
 
 }

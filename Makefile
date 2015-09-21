@@ -4,6 +4,8 @@ LIBUV_FLAGS=-pthread
 
 FILES=
 FILES+=naive-relay.cc
+FILES+=connection.cc
+FILES+=parser.cc
 
 all: relay.out
 
