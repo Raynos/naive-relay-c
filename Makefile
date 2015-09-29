@@ -1,6 +1,7 @@
 UV_PATH=$(shell pwd)/deps/libuv
 UV_LIB=$(UV_PATH)/out/Debug/libuv.a
 LIBUV_FLAGS=-pthread
+CC_FLAGS=-Wall -Werror -Wextra -std=c++11
 
 FILES=
 FILES+=naive-relay.cc
@@ -10,7 +11,7 @@ FILES+=parser.cc
 all: relay.out
 
 relay.out: main.cc $(FILES) $(UV_LIB)
-	c++ $^ -g -Wall -Werror -Wextra $(LIBUV_FLAGS) -o relay.out
+	c++ $^ -g $(CC_FLAGS) $(LIBUV_FLAGS) -o relay.out
 
 $(UV_LIB):
 	cd $(UV_PATH) && \
