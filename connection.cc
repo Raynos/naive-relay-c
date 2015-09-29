@@ -7,6 +7,8 @@
 
 namespace tchannel {
 
+class BufferSlice;
+
 static void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf);
 static void on_conn_read(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
 
@@ -49,13 +51,13 @@ void RelayConnection::readStart() {
 }
 
 void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
-    char* frameBuffer;
+    BufferSlice frameBuffer;
 
     if (nread == UV_EOF) {
         uv_close((uv_handle_t*) this->socket, NULL);
         fprintf(stderr, "Got unexpected EOF on incoming socket\n");
     } else if (nread > 0) {
-        this->parser->write(buf->base, nread);
+        this->parser->write(buf->base, (size_t) nread);
 
         while (this->parser->hasFrameBuffers()) {
             frameBuffer = this->parser->getFrameBuffer();

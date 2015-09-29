@@ -3,24 +3,33 @@
 
 namespace tchannel {
 
+class BufferSlice {
+public:
+    BufferSlice();
+    BufferSlice(char* buf, size_t length);
+
+    char* buf;
+    size_t length;
+};
+
 class FrameParser {
 public:
     FrameParser();
     // ~FrameParser();
 
-    void write(const uv_buf_t *buf, ssize_t nread);
+    void write(char* buf, size_t size);
     bool hasFrameBuffers();
-    char* getFrameBuffer();
+    BufferSlice getFrameBuffer();
 
 private:
-    void addRemainder(char *buf, int size);
-    char* concatRemainder(char *buf);
-    void pushFrameBuffer(char* buf);
+    void addRemainder(char* buf, size_t size);
+    BufferSlice concatRemainder(char* buf, size_t size);
+    void pushFrameBuffer(char* buf, size_t size);
 
-    std::vector<char*> remainder;
-    std::vector<char*> frameBuffers;
-    int remainderLength;
-    int frameLength;
+    std::vector<BufferSlice> remainder;
+    std::vector<BufferSlice> frameBuffers;
+    size_t remainderLength;
+    size_t frameLength;
 };
 
 }

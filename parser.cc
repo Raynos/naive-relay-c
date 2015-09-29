@@ -7,43 +7,53 @@
 
 namespace tchannel {
 
-uint16_t readFrameSize(char *buf, int offset);
-char * bufCopySlice(char *buf, int start, int end);
+uint16_t readFrameSize(char* buf, int offset);
+char* bufCopySlice(char* buf, int start, int end);
+
+BufferSlice::BufferSlice() {
+    this->buf = nullptr;
+    this->length = (size_t) 0;
+}
+
+BufferSlice::BufferSlice(char* buf, size_t length) {
+    this->buf = buf;
+    this->length = length;
+}
 
 FrameParser::FrameParser() {
     this->remainderLength = 0;
     this->frameLength = 0;
 }
 
-void FrameParser::write(char *buf, ssize_t nread) {
+void FrameParser::write(char* buf, size_t size) {
     if (this->frameLength == 0) {
-        this->frameLength = (int) readFrameSize(buf, 0);
+        this->frameLength = (size_t) readFrameSize(buf, 0);
     }
 
     if (this->frameLength <= 16) {
         fprintf(stderr, "Got unexpected really small frame\n");
     }
 
-    int bufferLength = nread;
-    int totalLength = this->remainderLength + bufferLength;
+    size_t bufferLength = size;
+    size_t totalLength = this->remainderLength + bufferLength;
 
     if (this->frameLength == totalLength) {
-        char* lastBuffer = bufCopySlice(buf, 0, nread)
-        this->pushFrameBuffer(lastBuffer);
+        char* lastBuffer = bufCopySlice(buf, 0, size);
+        this->pushFrameBuffer(lastBuffer, size);
         return;
     }
 
     if (this->frameLength > totalLength) {
-        this->addRemainder(bufCopySlice(buf, 0, nread), nread);
+        this->addRemainder(bufCopySlice(buf, 0, size), size);
     }
 
-    int startOfBuffer = 0;
+    size_t startOfBuffer = 0;
 
     while (this->frameLength <= totalLength) {
-        int endOfBuffer = this->frameLength - this->remainderLength;
+        size_t endOfBuffer = this->frameLength - this->remainderLength;
 
-        char *lastBuffer = bufCopySlice(buf, startOfBuffer, endOfBuffer);
-        this->pushFrameBuffer(lastBuffer);
+        char* lastBuffer = bufCopySlice(buf, startOfBuffer, endOfBuffer);
+        this->pushFrameBuffer(lastBuffer, endOfBuffer - startOfBuffer);
 
         if (endOfBuffer == bufferLength) {
             return;
@@ -51,11 +61,11 @@ void FrameParser::write(char *buf, ssize_t nread) {
 
         buf = bufCopySlice(buf, endOfBuffer, bufferLength);
         totalLength = bufferLength - endOfBuffer;
-        this->frameLength = (int) readFrameSize(buf, startOfBuffer);
+        this->frameLength = (size_t) readFrameSize(buf, startOfBuffer);
     }
 
     if (bufferLength) {
-        this->addRemainder(buf);
+        this->addRemainder(buf, bufferLength);
     }
 }
 
@@ -63,34 +73,40 @@ bool FrameParser::hasFrameBuffers() {
     return this->frameBuffers.size() != 0;
 }
 
-char * FrameParser::getFrameBuffer() {
+BufferSlice FrameParser::getFrameBuffer() {
     assert(this->frameBuffers.size() > 0 && "frameBuffers is empty");
 
-    char *last = this->frameBuffers.back();
+    BufferSlice last = this->frameBuffers.back();
     this->frameBuffers.pop_back();
     return last;
 }
 
-void FrameParser::pushFrameBuffer(char *buf) {
-    char *frameBuffer = this->concatRemainder(buf);
+void FrameParser::pushFrameBuffer(char* buf, size_t size) {
+    BufferSlice frameBuffer = this->concatRemainder(buf, size);
     this->frameBuffers.push_back(frameBuffer);
     this->frameLength = 0;
 }
 
-void FrameParser::addRemainder(char *buf, int size) {
-    this->remainder.push_back(buf);
+void FrameParser::addRemainder(char* buf, size_t size) {
+    BufferSlice slice = BufferSlice(buf, size);
+    this->remainder.push_back(slice);
     this->remainderLength += size;
 }
 
-char * FrameParser::concatRemainder(char *buf) {
+BufferSlice FrameParser::concatRemainder(char* buf, size_t size) {
+    BufferSlice slice;
+
     if (this->remainderLength == 0) {
-        return buf;
+        slice = BufferSlice(buf, size);
+        return slice;
     }
 
-    return (char*) NULL;
+    // TODO bug.
+    return slice;
 }
 
-uint16_t readFrameSize(char *buf, int offset) {
+// TODO: audit against out of bound reads
+uint16_t readFrameSize(char* buf, int offset) {
     uint16_t result = (uint16_t)(
         ((unsigned char)buf[offset] << 8) |
         ((unsigned char)buf[offset + 1])
@@ -99,10 +115,10 @@ uint16_t readFrameSize(char *buf, int offset) {
     return result;
 };
 
-char * bufCopySlice(char *buf, int start, int end) {
+char* bufCopySlice(char* buf, int start, int end) {
     // TODO do not noob malloc.
-    char *newBuffer = (char*) malloc(end - start);
-    char *sourceBuffer = (char*) &buf[start];
+    char* newBuffer = (char*) malloc(end - start);
+    char* sourceBuffer = (char*) &buf[start];
 
     strncpy( newBuffer, sourceBuffer, end - start);
 
