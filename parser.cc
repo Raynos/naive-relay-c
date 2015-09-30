@@ -25,47 +25,55 @@ FrameParser::FrameParser() {
     this->frameLength = 0;
 }
 
+// buf will be freed by caller.
 void FrameParser::write(char* buf, size_t size) {
     if (this->frameLength == 0) {
-        this->frameLength = (size_t) readFrameSize(buf, 0);
+        this->readFrameLength(buf, 0);
     }
 
-    if (this->frameLength <= 16) {
-        fprintf(stderr, "Got unexpected really small frame\n");
-    }
-
-    size_t bufferLength = size;
-    size_t totalLength = this->remainderLength + bufferLength;
+    size_t totalBufferLength = size;
+    size_t totalLength = this->remainderLength + totalBufferLength;
 
     if (this->frameLength == totalLength) {
+        // TODO free `lastBuffer`
         char* lastBuffer = bufCopySlice(buf, 0, size);
         this->pushFrameBuffer(lastBuffer, size);
         return;
     }
 
     if (this->frameLength > totalLength) {
-        this->addRemainder(bufCopySlice(buf, 0, size), size);
+        // TODO free `remainderBuffer`
+        char* remainderBuffer = bufCopySlice(buf, 0, size);
+        this->addRemainder(remainderBuffer, size);
+        return;
     }
 
     size_t startOfBuffer = 0;
 
     while (this->frameLength <= totalLength) {
-        size_t endOfBuffer = this->frameLength - this->remainderLength;
+        size_t amountToRead = this->frameLength - this->remainderLength;
 
-        char* lastBuffer = bufCopySlice(buf, startOfBuffer, endOfBuffer);
-        this->pushFrameBuffer(lastBuffer, endOfBuffer - startOfBuffer);
+        // TODO free `lastBuffer`
+        char* lastBuffer = bufCopySlice(
+            buf, startOfBuffer, startOfBuffer + amountToRead
+        );
+        this->pushFrameBuffer(lastBuffer, amountToRead);
 
-        if (endOfBuffer == bufferLength) {
+        if (startOfBuffer + amountToRead == totalBufferLength) {
             return;
         }
 
-        buf = bufCopySlice(buf, endOfBuffer, bufferLength);
-        totalLength = bufferLength - endOfBuffer;
-        this->frameLength = (size_t) readFrameSize(buf, startOfBuffer);
+        startOfBuffer = startOfBuffer + amountToRead;
+        totalLength = totalBufferLength - startOfBuffer;
+        this->readFrameLength(buf, startOfBuffer);
     }
 
-    if (bufferLength) {
-        this->addRemainder(buf, bufferLength);
+    if (startOfBuffer < totalBufferLength) {
+        char* remainderBuffer = bufCopySlice(
+            buf, startOfBuffer, totalBufferLength
+        );
+        size_t size = totalBufferLength - startOfBuffer;
+        this->addRemainder(remainderBuffer, size);
     }
 }
 
@@ -103,6 +111,14 @@ BufferSlice FrameParser::concatRemainder(char* buf, size_t size) {
 
     // TODO bug.
     return slice;
+}
+
+void FrameParser::readFrameLength(char* buf, int offset) {
+    this->frameLength = (size_t) readFrameSize(buf, offset);
+
+    if (this->frameLength <= 16) {
+        fprintf(stderr, "Got unexpected really small frame\n");
+    }
 }
 
 // TODO: audit against out of bound reads

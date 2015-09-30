@@ -25,6 +25,7 @@ private:
     void addRemainder(char* buf, size_t size);
     BufferSlice concatRemainder(char* buf, size_t size);
     void pushFrameBuffer(char* buf, size_t size);
+    void readFrameLength(char* buf, int offset);
 
     std::vector<BufferSlice> remainder;
     std::vector<BufferSlice> frameBuffers;
