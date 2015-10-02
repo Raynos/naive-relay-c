@@ -73,7 +73,7 @@ uint32_t BufferReader::ReadUint32BE() {
 void BufferReader::WriteUint32BE(uint32_t value) {
     if (this->error || !this->CheckRead(4)) {
         this->error = true;
-        return 0;
+        return;
     }
 
     memcpy(&buffer[this->offset], &value, 4);
