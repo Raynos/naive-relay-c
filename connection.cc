@@ -37,8 +37,8 @@ void RelayConnection::accept(uv_stream_t *server) {
 
     r = uv_accept(server, (uv_stream_t*) this->socket);
     if (r) {
-        fprintf(stderr, "Could not accept socket %d", r);
-        uv_close((uv_handle_t*) this->socket, NULL);
+        fprintf(stderr, "Could not accept socket %d\n", r);
+        uv_close((uv_handle_t*) this->socket, nullptr);
     } else {
         fprintf(stderr, "Got incoming socket\n");
     }
@@ -54,7 +54,7 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
     BufferSlice frameBuffer;
 
     if (nread == UV_EOF) {
-        uv_close((uv_handle_t*) this->socket, NULL);
+        uv_close((uv_handle_t*) this->socket, nullptr);
         fprintf(stderr, "Got unexpected EOF on incoming socket\n");
     } else if (nread > 0) {
         this->parser->write(buf->base, (size_t) nread);
@@ -66,6 +66,7 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
             // this->relay->handleFrame()
         }
     } else {
+        uv_close((uv_handle_t*) this->socket, nullptr);
         fprintf(
             stderr,
             "Got unexpected error on reading incoming socket %d\n",
