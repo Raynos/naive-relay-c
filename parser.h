@@ -31,7 +31,7 @@ private:
     std::vector<BufferSlice> remainder;
     std::vector<BufferSlice> frameBuffers;
     size_t remainderLength;
-    size_t frameLength;
+    uint16_t frameLength;
     Buffer::BufferReader reader;
 };
 
