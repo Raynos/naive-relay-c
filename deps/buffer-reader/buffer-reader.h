@@ -18,6 +18,8 @@ public:
     BufferReader();
     BufferReader(char* buffer, size_t length);
 
+    size_t offset;
+
     bool Error();
 
     uint8_t ReadUint8();
@@ -30,7 +32,6 @@ public:
 private:
     bool CheckRead(size_t length);
     bool error;
-    size_t offset;
     char* buffer;
     size_t length;
 };
