@@ -1,3 +1,4 @@
+#include <string.h>
 #include "buffer-reader.h"
 
 namespace Buffer {
@@ -67,6 +68,17 @@ uint32_t BufferReader::ReadUint32BE() {
     this->offset += 4;
 
     return result;
+}
+
+void BufferReader::WriteUint32BE(uint32_t value) {
+    if (this->error || !this->CheckRead(4)) {
+        this->error = true;
+        return 0;
+    }
+
+    memcpy(&buffer[this->offset], &value, 4);
+
+    this->offset += 4;
 }
 
 void BufferReader::Skip(size_t count) {

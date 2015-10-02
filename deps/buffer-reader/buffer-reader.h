@@ -29,6 +29,8 @@ public:
     void ReadUint8Buffer(struct BufferResult &result);
     void ReadUint16BERange(struct BufferRange &range);
 
+    void WriteUint32BE(uint32_t value);
+
 private:
     bool CheckRead(size_t length);
     bool error;
