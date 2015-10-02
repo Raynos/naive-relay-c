@@ -7,7 +7,6 @@
 
 namespace tchannel {
 
-uint16_t readFrameSize(char* buf, int offset);
 char* bufCopySlice(char* buf, int start, int end);
 
 BufferSlice::BufferSlice() {
@@ -23,15 +22,17 @@ BufferSlice::BufferSlice(char* buf, size_t length) {
 FrameParser::FrameParser() {
     this->remainderLength = 0;
     this->frameLength = 0;
+    this->reader = Buffer::BufferReader();
 }
 
 // buf will be freed by caller.
 void FrameParser::write(char* buf, size_t size) {
+    size_t totalBufferLength = size;
+
     if (this->frameLength == 0) {
-        this->readFrameLength(buf, 0);
+        this->readFrameLength(buf, 0, totalBufferLength);
     }
 
-    size_t totalBufferLength = size;
     size_t totalLength = this->remainderLength + totalBufferLength;
 
     if (this->frameLength == totalLength) {
@@ -65,10 +66,11 @@ void FrameParser::write(char* buf, size_t size) {
 
         startOfBuffer = startOfBuffer + amountToRead;
         totalLength = totalBufferLength - startOfBuffer;
-        this->readFrameLength(buf, startOfBuffer);
+        this->readFrameLength(buf, startOfBuffer, totalBufferLength);
     }
 
     if (startOfBuffer < totalBufferLength) {
+        // TODO free `remainderBuffer`
         char* remainderBuffer = bufCopySlice(
             buf, startOfBuffer, totalBufferLength
         );
@@ -113,23 +115,20 @@ BufferSlice FrameParser::concatRemainder(char* buf, size_t size) {
     return slice;
 }
 
-void FrameParser::readFrameLength(char* buf, int offset) {
-    this->frameLength = (size_t) readFrameSize(buf, offset);
+void FrameParser::readFrameLength(char* buf, int offset, size_t length) {
+    this->reader = Buffer::BufferReader(buf, length);
+    this->reader.Skip((size_t) offset);
+
+    this->frameLength = (size_t) this->reader.ReadUint16BE();
+
+    if (this->reader.Error()) {
+        fprintf(stderr, "Out of bounds read into buffer");
+    }
 
     if (this->frameLength <= 16) {
         fprintf(stderr, "Got unexpected really small frame\n");
     }
 }
-
-// TODO: audit against out of bound reads
-uint16_t readFrameSize(char* buf, int offset) {
-    uint16_t result = (uint16_t)(
-        ((unsigned char)buf[offset] << 8) |
-        ((unsigned char)buf[offset + 1])
-    );
-
-    return result;
-};
 
 char* bufCopySlice(char* buf, int start, int end) {
     // TODO do not noob malloc.
