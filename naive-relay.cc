@@ -16,6 +16,7 @@ NaiveRelay::NaiveRelay(uv_loop_t *loop) {
     this->loop = loop;
     strncpy(this->hostPort, "", 128);
 
+    // TODO remove noob malloc
     this->server = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
     this->server->data = (void*) this;
 }
@@ -47,7 +48,7 @@ void NaiveRelay::listen(int serverPort, const char *serverHost) {
 void NaiveRelay::onNewConnection() {
     tchannel::RelayConnection *conn;
 
-    // TODO free connection
+    // TODO remove noob new connection
     conn = new tchannel::RelayConnection(this->loop, this, "in");
 
     conn->accept((uv_stream_t*) this->server);
