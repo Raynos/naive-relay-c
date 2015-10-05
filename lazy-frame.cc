@@ -5,8 +5,40 @@ namespace tchannel {
 
 const int ID_OFFSET = 4;
 const int TYPE_OFFSET = 2;
+const int FRAME_POOL_SIZE = 1000;
+
+LazyFramePool::LazyFramePool() {
+    this->frames = std::vector<LazyFrame>(FRAME_POOL_SIZE);
+    this->availableFrames = std::vector<LazyFrame*>(FRAME_POOL_SIZE);
+
+    for (int i = 0; i < FRAME_POOL_SIZE; i++) {
+        this->frames[i].init();
+        this->availableFrames[i] = &this->frames[i];
+    }
+}
+
+LazyFrame* LazyFramePool::acquire(char* frameBuffer, size_t size) {
+    if (this->availableFrames.size() == 0) {
+        assert("LazyFramePool is empty");
+        return nullptr;
+    }
+
+    LazyFrame* ptr = this->availableFrames.back();
+    this->availableFrames.pop_back();
+    ptr->init(frameBuffer, size);
+
+    return ptr;
+}
+
+void LazyFramePool::release(LazyFrame* frame) {
+    this->availableFrames.push_back(frame);
+}
 
 LazyFrame::LazyFrame() {
+    this->init();
+}
+
+void LazyFrame::init() {
     this->frameBuffer = nullptr;
     this->reader = Buffer::BufferReader();
 
@@ -15,6 +47,13 @@ LazyFrame::LazyFrame() {
     this->newId = 0;
     this->frameType = 0;
     this->frameTypeCached = false;
+}
+
+void LazyFrame::init(char* frameBuffer, size_t size) {
+    this->init();
+
+    this->frameBuffer = frameBuffer;
+    this->reader = Buffer::BufferReader(frameBuffer, size);
 }
 
 uint32_t LazyFrame::readId() {

@@ -8,7 +8,9 @@ class LazyFrame;
 
 class LazyFramePool {
 public:
-    LazyFrame* acquire();
+    LazyFramePool();
+
+    LazyFrame* acquire(char* frameBuffer, size_t size);
     void release(LazyFrame* frame);
 
 private:
@@ -19,6 +21,10 @@ private:
 class LazyFrame {
 public:
     LazyFrame();
+
+    void init();
+    void init(char* frameBuffer, size_t size);
+    void clear();
 
     uint32_t readId();
     uint8_t readFrameType();
