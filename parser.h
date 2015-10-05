@@ -7,9 +7,11 @@ namespace tchannel {
 class BufferSlice {
 public:
     BufferSlice();
-    BufferSlice(char* buf, size_t length);
+    BufferSlice(char* buf, size_t start, size_t end);
 
     char* buf;
+    size_t start;
+    size_t end;
     size_t length;
 };
 
@@ -23,9 +25,9 @@ public:
     BufferSlice getFrameBuffer();
 
 private:
-    void addRemainder(char* buf, size_t size);
+    void addRemainder(char* buf, size_t start, size_t end);
     BufferSlice concatRemainder(char* buf, size_t size);
-    void pushFrameBuffer(char* buf, size_t size);
+    void pushFrameBuffer(char* buf, size_t start, size_t end);
     void readFrameLength(char* buf, int offset, size_t length);
 
     std::vector<BufferSlice> remainder;

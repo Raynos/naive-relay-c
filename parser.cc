@@ -11,12 +11,16 @@ char* bufCopySlice(char* buf, int start, int end);
 
 BufferSlice::BufferSlice() {
     this->buf = nullptr;
+    this->start = (size_t) 0;
+    this->end = (size_t) 0;
     this->length = (size_t) 0;
 }
 
-BufferSlice::BufferSlice(char* buf, size_t length) {
+BufferSlice::BufferSlice(char* buf, size_t start, size_t end) {
     this->buf = buf;
-    this->length = length;
+    this->start = start;
+    this->end = end;
+    this->length = end - start;
 }
 
 FrameParser::FrameParser() {
@@ -36,16 +40,12 @@ void FrameParser::write(char* buf, size_t size) {
     size_t totalLength = this->remainderLength + totalBufferLength;
 
     if (this->frameLength == totalLength) {
-        // TODO free `lastBuffer`
-        char* lastBuffer = bufCopySlice(buf, 0, size);
-        this->pushFrameBuffer(lastBuffer, size);
+        this->pushFrameBuffer(buf, 0, size);
         return;
     }
 
     if (this->frameLength > totalLength) {
-        // TODO free `remainderBuffer`
-        char* remainderBuffer = bufCopySlice(buf, 0, size);
-        this->addRemainder(remainderBuffer, size);
+        this->addRemainder(buf, 0, size);
         return;
     }
 
@@ -54,11 +54,7 @@ void FrameParser::write(char* buf, size_t size) {
     while (this->frameLength <= totalLength) {
         size_t amountToRead = this->frameLength - this->remainderLength;
 
-        // TODO free `lastBuffer`
-        char* lastBuffer = bufCopySlice(
-            buf, startOfBuffer, startOfBuffer + amountToRead
-        );
-        this->pushFrameBuffer(lastBuffer, amountToRead);
+        this->pushFrameBuffer(buf, startOfBuffer, startOfBuffer + amountToRead);
 
         if (startOfBuffer + amountToRead == totalBufferLength) {
             return;
@@ -70,12 +66,7 @@ void FrameParser::write(char* buf, size_t size) {
     }
 
     if (startOfBuffer < totalBufferLength) {
-        // TODO free `remainderBuffer`
-        char* remainderBuffer = bufCopySlice(
-            buf, startOfBuffer, totalBufferLength
-        );
-        size_t size = totalBufferLength - startOfBuffer;
-        this->addRemainder(remainderBuffer, size);
+        this->addRemainder(buf, startOfBuffer, totalBufferLength);
     }
 }
 
@@ -91,27 +82,52 @@ BufferSlice FrameParser::getFrameBuffer() {
     return last;
 }
 
-void FrameParser::pushFrameBuffer(char* buf, size_t size) {
-    BufferSlice frameBuffer = this->concatRemainder(buf, size);
+void FrameParser::pushFrameBuffer(char* buf, size_t start, size_t end) {
+    // TODO free `rawFrameBuffer`
+    char* rawFrameBuffer = bufCopySlice(buf, start, end);
+
+    BufferSlice frameBuffer = this->concatRemainder(
+        rawFrameBuffer, end - start
+    );
     this->frameBuffers.push_back(frameBuffer);
     this->frameLength = 0;
 }
 
-void FrameParser::addRemainder(char* buf, size_t size) {
-    BufferSlice slice = BufferSlice(buf, size);
+void FrameParser::addRemainder(char* buf, size_t start, size_t end) {
+    char* remainderBuffer = bufCopySlice(buf, start, end);
+
+    BufferSlice slice = BufferSlice(remainderBuffer, 0, end - start);
     this->remainder.push_back(slice);
-    this->remainderLength += size;
+    this->remainderLength += slice.length;
 }
 
 BufferSlice FrameParser::concatRemainder(char* buf, size_t size) {
     BufferSlice slice;
 
     if (this->remainderLength == 0) {
-        slice = BufferSlice(buf, size);
+        slice = BufferSlice(buf, 0, size);
         return slice;
     }
 
-    // TODO bug.
+    // TODO remove noob malloc.
+    char* rawBuffer = (char*) malloc(this->remainderLength + size);
+
+    char* destBuffer = rawBuffer;
+    for (uint i = 0; i < this->remainder.size(); i++) {
+        BufferSlice tempSlice = this->remainder[i];
+        assert(tempSlice.start == 0 && "Cannot concat non-complete buffers");
+
+        memcpy(destBuffer, tempSlice.buf, tempSlice.length);
+        destBuffer = (char*) destBuffer + tempSlice.length;
+
+        free(tempSlice.buf);
+    }
+
+    slice = BufferSlice(rawBuffer, 0, this->remainderLength + size);
+
+    this->remainder.clear();
+    this->remainderLength = 0;
+
     return slice;
 }
 
@@ -135,7 +151,7 @@ char* bufCopySlice(char* buf, int start, int end) {
     char* newBuffer = (char*) malloc(end - start);
     char* sourceBuffer = (char*) &buf[start];
 
-    strncpy( newBuffer, sourceBuffer, end - start);
+    memcpy( newBuffer, sourceBuffer, end - start);
 
     return newBuffer;
 }
