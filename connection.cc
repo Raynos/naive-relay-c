@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include "connection.h"
+#include "naive-relay.h"
 #include "deps/libuv/include/uv.h"
 
 namespace tchannel {
@@ -54,6 +55,7 @@ void RelayConnection::readStart() {
 
 void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
     BufferSlice frameBuffer;
+    LazyFrame* lazyFrame;
 
     if (nread == UV_EOF) {
         uv_close((uv_handle_t*) this->socket, nullptr);
@@ -63,9 +65,12 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
 
         while (this->parser.hasFrameBuffers()) {
             frameBuffer = this->parser.getFrameBuffer();
-            (void) frameBuffer;
-            // TODO create lazy frame
-            // this->relay->handleFrame()
+
+            // TODO release back to pool
+            lazyFrame = this->framePool.acquire(
+                frameBuffer.buf, frameBuffer.length, this
+            );
+            this->relay->handleFrame(lazyFrame);
         }
     } else {
         uv_close((uv_handle_t*) this->socket, nullptr);
@@ -81,15 +86,13 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
     }
 }
 
-static void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {
-    (void) handle;
-
+static void alloc_cb(uv_handle_t* /*handle*/, size_t size, uv_buf_t*buf) {
     // TODO slab allocator
     buf->base = (char*) malloc(size);
     buf->len = size;
 }
 
-static void on_conn_read(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf) {
+static void on_conn_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
 
     tchannel::RelayConnection *conn;
     conn = (tchannel::RelayConnection*) tcp->data;

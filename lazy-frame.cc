@@ -17,7 +17,9 @@ LazyFramePool::LazyFramePool() {
     }
 }
 
-LazyFrame* LazyFramePool::acquire(char* frameBuffer, size_t size) {
+LazyFrame* LazyFramePool::acquire(
+    char* frameBuffer, size_t size, RelayConnection* conn
+) {
     if (this->availableFrames.size() == 0) {
         assert("LazyFramePool is empty");
         return nullptr;
@@ -25,7 +27,7 @@ LazyFrame* LazyFramePool::acquire(char* frameBuffer, size_t size) {
 
     LazyFrame* ptr = this->availableFrames.back();
     this->availableFrames.pop_back();
-    ptr->init(frameBuffer, size);
+    ptr->init(frameBuffer, size, conn);
 
     return ptr;
 }
@@ -41,6 +43,7 @@ LazyFrame::LazyFrame() {
 void LazyFrame::init() {
     this->frameBuffer = nullptr;
     this->reader = Buffer::BufferReader();
+    this->conn = nullptr;
 
     this->oldId = 0;
     this->oldIdCached = false;
@@ -49,11 +52,12 @@ void LazyFrame::init() {
     this->frameTypeCached = false;
 }
 
-void LazyFrame::init(char* frameBuffer, size_t size) {
+void LazyFrame::init(char* frameBuffer, size_t size, RelayConnection* conn) {
     this->init();
 
     this->frameBuffer = frameBuffer;
     this->reader = Buffer::BufferReader(frameBuffer, size);
+    this->conn = conn;
 }
 
 uint32_t LazyFrame::readId() {

@@ -1,3 +1,6 @@
+#ifndef CPP_MODULE_NAIVE_RELAY_CONNECTION_H
+#define CPP_MODULE_NAIVE_RELAY_CONNECTION_H
+
 #include "parser.h"
 #include "lazy-frame.h"
 #include "deps/libuv/include/uv.h"
@@ -24,7 +27,7 @@ private:
     tchannel::LazyFramePool framePool;
 
     uv_tcp_t* socket;
-    tchannel::NaiveRelay* relay;
+    NaiveRelay* relay;
     uv_loop_t* loop;
     /* idCounter */
     /* guid */
@@ -34,3 +37,5 @@ private:
 };
 
 }
+
+#endif /* CPP_MODULE_NAIVE_RELAY_CONNECTION_H */

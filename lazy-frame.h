@@ -1,3 +1,6 @@
+#ifndef CPP_MODULE_NAIVE_RELAY_LAZY_FRAME_H
+#define CPP_MODULE_NAIVE_RELAY_LAZY_FRAME_H
+
 #include <vector>
 #include <cstdint>
 #include "deps/buffer-reader/buffer-reader.h"
@@ -5,12 +8,13 @@
 namespace tchannel {
 
 class LazyFrame;
+class RelayConnection;
 
 class LazyFramePool {
 public:
     LazyFramePool();
 
-    LazyFrame* acquire(char* frameBuffer, size_t size);
+    LazyFrame* acquire(char* frameBuffer, size_t size, RelayConnection* conn);
     void release(LazyFrame* frame);
 
 private:
@@ -23,12 +27,14 @@ public:
     LazyFrame();
 
     void init();
-    void init(char* frameBuffer, size_t size);
+    void init(char* frameBuffer, size_t size, RelayConnection* conn);
     void clear();
 
     uint32_t readId();
     uint8_t readFrameType();
     void writeId(uint32_t newId);
+
+    RelayConnection* conn;
 
 private:
     char* frameBuffer;
@@ -43,3 +49,5 @@ private:
 };
 
 }
+
+#endif /* CPP_MODULE_NAIVE_RELAY_LAZY_FRAME_H */

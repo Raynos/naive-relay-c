@@ -1,3 +1,6 @@
+#ifndef CPP_MODULE_NAIVE_RELAY_PARSER_H
+#define CPP_MODULE_NAIVE_RELAY_PARSER_H
+
 #include <vector>
 #include "deps/libuv/include/uv.h"
 #include "deps/buffer-reader/buffer-reader.h"
@@ -38,3 +41,5 @@ private:
 };
 
 }
+
+#endif /* CPP_MODULE_NAIVE_RELAY_PARSER_H */

@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <iostream>
 #include "deps/libuv/include/uv.h"
 #include "naive-relay.h"
-#include "connection.h"
 
 #define DEFAULT_BACKLOG 128
 
@@ -45,11 +45,19 @@ void NaiveRelay::listen(int serverPort, const char *serverHost) {
     assert(!r && "could not listen to tcp server");
 }
 
+
+void NaiveRelay::handleFrame(LazyFrame* lazyFrame) {
+    (void) lazyFrame;
+
+    // TODO do a thing with lazyFrame
+}
+
 void NaiveRelay::onNewConnection() {
-    tchannel::RelayConnection *conn;
+    tchannel::RelayConnection* conn;
 
     // TODO remove noob new connection
     conn = new tchannel::RelayConnection(this->loop, this, "in");
+    this->connections.push_back(conn);
 
     conn->accept((uv_stream_t*) this->server);
     conn->readStart();
