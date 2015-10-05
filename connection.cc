@@ -19,13 +19,15 @@ RelayConnection::RelayConnection(
     strncpy(this->direction, direction, 16);
     this->relay = relay;
 
-    this->parser = new tchannel::FrameParser;
+    this->parser = tchannel::FrameParser();
+    this->framePool = tchannel::LazyFramePool();
+
+    // TODO remove noob malloc
     this->socket = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
     this->socket->data = (void*) this;
 }
 
 RelayConnection::~RelayConnection() {
-    delete this->parser;
     free(this->socket);
 }
 
@@ -47,7 +49,7 @@ void RelayConnection::accept(uv_stream_t *server) {
 void RelayConnection::readStart() {
     uv_read_start((uv_stream_t*) this->socket, alloc_cb, on_conn_read);
 
-    /* if this->direction === out then sendInitRequest() */
+    /* TODO if this->direction === out then sendInitRequest() */
 }
 
 void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
@@ -57,12 +59,12 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
         uv_close((uv_handle_t*) this->socket, nullptr);
         fprintf(stderr, "Got unexpected EOF on incoming socket\n");
     } else if (nread > 0) {
-        this->parser->write(buf->base, (size_t) nread);
+        this->parser.write(buf->base, (size_t) nread);
 
-        while (this->parser->hasFrameBuffers()) {
-            frameBuffer = this->parser->getFrameBuffer();
+        while (this->parser.hasFrameBuffers()) {
+            frameBuffer = this->parser.getFrameBuffer();
             (void) frameBuffer;
-            // create lazy frame
+            // TODO create lazy frame
             // this->relay->handleFrame()
         }
     } else {
@@ -82,6 +84,7 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
 static void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf) {
     (void) handle;
 
+    // TODO slab allocator
     buf->base = (char*) malloc(size);
     buf->len = size;
 }
