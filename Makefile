@@ -10,11 +10,13 @@ UV_LIB=$(UV_PATH)/out/Debug/libuv.a
 BUFFER_READER_PATH=$(shell pwd)/deps/buffer-reader
 BUFFER_READER_LIB=$(BUFFER_READER_PATH)/buffer-reader.cc
 
+DEPENDENCIES=$(UV_LIB) $(BUFFER_READER_LIB)
+
 # My code
 APP_FILES=$(wildcard *.cc)
 BIN=relay.out
 
-FILES=$(APP_FILES) $(UV_LIB) $(BUFFER_READER_LIB)
+FILES=$(APP_FILES) $(DEPENDENCIES)
 
 all: relay.out
 
