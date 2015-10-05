@@ -1,3 +1,6 @@
+#ifndef CPP_MODULE_BUFFER_READER_H
+#define CPP_MODULE_BUFFER_READER_H
+
 #include <cstddef>
 #include <cstdint>
 
@@ -39,3 +42,5 @@ private:
 };
 
 }
+
+#endif /* CPP_MODULE_BUFFER_READER_H */
