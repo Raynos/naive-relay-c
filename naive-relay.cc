@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <iostream>
+#include <sstream>
 #include "deps/libuv/include/uv.h"
 #include "naive-relay.h"
 
@@ -14,7 +15,6 @@ static void on_connection_cb(uv_stream_t *server, int status);
 
 NaiveRelay::NaiveRelay(uv_loop_t *loop) {
     this->loop = loop;
-    strncpy(this->hostPort, "", 128);
 
     // TODO remove noob malloc
     this->server = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
@@ -36,7 +36,11 @@ void NaiveRelay::listen(int serverPort, const char *serverHost) {
     r = uv_ip4_addr(serverHost, serverPort, &serverAddress);
     assert(!r && "could not allocate address");
 
-    sprintf(this->hostPort, "%s:%d", serverHost, serverPort);
+    std::stringstream ss;
+    ss << serverHost << ":" << serverPort;
+    this->hostPort = ss.str();
+
+    // sprintf(this->hostPort, "%s:%d", serverHost, serverPort);
 
     r = uv_tcp_bind(this->server, (struct sockaddr*) &serverAddress, 0);
     assert(!r && "could not bind to server socket");
@@ -46,17 +50,17 @@ void NaiveRelay::listen(int serverPort, const char *serverHost) {
 }
 
 
-void NaiveRelay::handleFrame(LazyFrame* lazyFrame) {
+void NaiveRelay::handleFrame(RelayConnection* conn, LazyFrame* lazyFrame) {
     int frameType = (int) lazyFrame->readFrameType();
 
     switch (frameType) {
         case 0x01:
-            this->handleInitRequest(lazyFrame);
+            conn->handleInitRequest(lazyFrame);
             // TODO free lazyFrame
             break;
 
         case 0x02:
-            this->handleInitResponse(lazyFrame);
+            conn->handleInitResponse(lazyFrame);
             // TODO free lazyFrame
             break;
 
@@ -71,19 +75,12 @@ void NaiveRelay::onNewConnection() {
     tchannel::RelayConnection* conn;
 
     // TODO remove noob new connection
-    conn = new tchannel::RelayConnection(this->loop, this, "in");
+    // TODO free() on close.
+    conn = new RelayConnection(this->loop, this, "in");
     this->connections.push_back(conn);
 
     conn->accept((uv_stream_t*) this->server);
     conn->readStart();
-}
-
-void NaiveRelay::handleInitRequest(LazyFrame* frame) {
-    (void) frame;
-}
-
-void NaiveRelay::handleInitResponse(LazyFrame* frame) {
-    (void) frame;
 }
 
 static void on_connection_cb(uv_stream_t *server, int status) {

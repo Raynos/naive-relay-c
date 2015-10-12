@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <iostream>
 #include "deps/libuv/include/uv.h"
 #include "naive-relay.h"
 
@@ -12,7 +12,7 @@ int main(/*int argc, char *argv[]*/) {
 
     relay.listen(serverPort, serverHost);
 
-    fprintf(stderr, "Listening on address %s\n", relay.hostPort);
+    std::cerr << "Listening on adress " << relay.hostPort << std::endl;
 
     uv_run(loop, UV_RUN_DEFAULT);
     return 0;
