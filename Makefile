@@ -3,6 +3,7 @@ CXX=c++
 CXXFLAGS=-Wall -Werror -Wextra -std=c++11 -pedantic -g
 LDFLAGS=-pthread
 RM=rm -f
+CORES=$(shell sysctl -n hw.ncpu 2>/dev/null || nproc || echo 1)
 
 # Third party code
 UV_PATH=$(shell pwd)/deps/libuv
@@ -19,7 +20,7 @@ SOURCES=$(wildcard *.cc)
 OBJECTS=$(SOURCES:.cc=.o)
 EXECUTABLE=relay.out
 
-all:; @$(MAKE) _all -j8
+all:; @$(MAKE) _all -j$(CORES)
 _all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS) $(LDLIBS)
