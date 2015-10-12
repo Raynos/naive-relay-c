@@ -1,7 +1,7 @@
 # Compiler flags
-CC_FLAGS=-Wall -Werror -Wextra -std=c++11 -pedantic -g
-LIBUV_FLAGS=-pthread
-CC_FLAGS+=$(LIBUV_FLAGS)
+CXX=c++
+CXXFLAGS=-Wall -Werror -Wextra -std=c++11 -pedantic -g
+LDFLAGS=-pthread
 
 # Third party code
 UV_PATH=$(shell pwd)/deps/libuv
@@ -10,18 +10,18 @@ UV_LIB=$(UV_PATH)/out/Debug/libuv.a
 BUFFER_READER_PATH=$(shell pwd)/deps/buffer-reader
 BUFFER_READER_LIB=$(BUFFER_READER_PATH)/buffer-reader.cc
 
-DEPENDENCIES=$(UV_LIB) $(BUFFER_READER_LIB)
+LDLIBS=$(UV_LIB) $(BUFFER_READER_LIB)
 
 # My code
 APP_FILES=$(wildcard *.cc)
 BIN=relay.out
 
-FILES=$(APP_FILES) $(DEPENDENCIES)
+FILES=$(APP_FILES) $(LDLIBS)
 
 all: relay.out
 
 relay.out: $(FILES)
-	c++ $^ $(CC_FLAGS) -o $(BIN)
+	$(CXX) $^ $(CXXFLAGS) $(LDFLAGS) -o $(BIN)
 
 $(UV_LIB):
 	cd $(UV_PATH) && \
@@ -32,4 +32,11 @@ $(UV_LIB):
 run: relay.out
 	./relay.out
 
-.PHONY: run
+clean:
+	rm -f *.o
+	rm -f $(BUFFER_READER_LIB)
+
+clean_deps:
+	rm -f $(UV_LIB)
+
+.PHONY: run clean
