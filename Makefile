@@ -14,14 +14,14 @@ LDLIBS=$(UV_LIB) $(BUFFER_READER_LIB)
 
 # My code
 APP_FILES=$(wildcard *.cc)
-BIN=relay.out
+EXECUTABLE=relay.out
 
 FILES=$(APP_FILES) $(LDLIBS)
 
-all: relay.out
+all: $(EXECUTABLE)
 
-relay.out: $(FILES)
-	$(CXX) $^ $(CXXFLAGS) $(LDFLAGS) -o $(BIN)
+$(EXECUTABLE): $(FILES)
+	$(CXX) $^ $(CXXFLAGS) $(LDFLAGS) -o $(EXECUTABLE)
 
 $(UV_LIB):
 	cd $(UV_PATH) && \
@@ -33,8 +33,9 @@ run: relay.out
 	./relay.out
 
 clean:
+	rm -f $(EXECUTABLE)
 	rm -f *.o
-	rm -f $(BUFFER_READER_LIB)
+	# rm -f $(BUFFER_READER_LIB)
 
 clean_deps:
 	rm -f $(UV_LIB)
