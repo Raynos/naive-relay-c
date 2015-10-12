@@ -13,13 +13,13 @@ BUFFER_READER_LIB=$(BUFFER_READER_PATH)/buffer-reader.o
 LDLIBS=$(UV_LIB) $(BUFFER_READER_LIB)
 
 # My code
-APP_FILES=$(wildcard *.cc)
+SOURCES=$(filter-out main.cc, $(wildcard *.cc))
 EXECUTABLE=relay.out
 
 all: $(EXECUTABLE)
 
-$(EXECUTABLE): $(APP_FILES) $(LDLIBS)
-	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $(EXECUTABLE)
+$(EXECUTABLE): main.cc $(SOURCES) $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $(EXECUTABLE)
 
 %.o: %.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@
