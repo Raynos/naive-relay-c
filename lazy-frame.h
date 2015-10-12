@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <string>
 #include "deps/buffer-reader/buffer-reader.h"
 
 namespace tchannel {
@@ -29,6 +30,7 @@ public:
     void init();
     void init(char* frameBuffer, size_t size, RelayConnection* conn);
     void clear();
+    std::string toString();
 
     uint32_t readId();
     uint8_t readFrameType();
@@ -38,6 +40,7 @@ public:
 
 private:
     char* frameBuffer;
+    size_t frameBufferLength;
     Buffer::BufferReader reader;
     uint32_t newId;
 

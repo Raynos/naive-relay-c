@@ -45,6 +45,7 @@ void LazyFrame::init() {
     this->reader = Buffer::BufferReader();
     this->conn = nullptr;
 
+    this->frameBufferLength = 0;
     this->oldId = 0;
     this->oldIdCached = false;
     this->newId = 0;
@@ -56,8 +57,15 @@ void LazyFrame::init(char* frameBuffer, size_t size, RelayConnection* conn) {
     this->init();
 
     this->frameBuffer = frameBuffer;
+    this->frameBufferLength = size;
     this->reader = Buffer::BufferReader(frameBuffer, size);
     this->conn = conn;
+}
+
+std::string LazyFrame::toString() {
+    std::string prefix = "LazyFrame: ";
+
+    return prefix + std::string(this->frameBuffer, this->frameBufferLength);
 }
 
 uint32_t LazyFrame::readId() {
