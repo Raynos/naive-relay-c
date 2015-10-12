@@ -78,6 +78,14 @@ void NaiveRelay::onNewConnection() {
     conn->readStart();
 }
 
+void NaiveRelay::handleInitRequest(LazyFrame* frame) {
+    (void) frame;
+}
+
+void NaiveRelay::handleInitResponse(LazyFrame* frame) {
+    (void) frame;
+}
+
 static void on_connection_cb(uv_stream_t *server, int status) {
     assert(status >= 0 && "libuv incoming connection error");
 
