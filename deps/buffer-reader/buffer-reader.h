@@ -32,7 +32,10 @@ public:
     void ReadUint8Buffer(struct BufferResult &result);
     void ReadUint16BERange(struct BufferRange &range);
 
+    void WriteInt8(uint8_t value);
+    void WriteUint16BE(uint16_t value);
     void WriteUint32BE(uint32_t value);
+    void Write(char* buf, size_t length);
 
 private:
     bool CheckRead(size_t length);

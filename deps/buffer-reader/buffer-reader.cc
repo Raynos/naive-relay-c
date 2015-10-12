@@ -70,15 +70,52 @@ uint32_t BufferReader::ReadUint32BE() {
     return result;
 }
 
+void BufferReader::WriteInt8(uint8_t value) {
+    if (this->error || !this->CheckRead(1)) {
+        this->error = true;
+        return;
+    }
+
+    buffer[this->offset] = (char)value;
+
+    this->offset += 1;
+}
+
+void BufferReader::WriteUint16BE(uint16_t value) {
+    if (this->error || !this->CheckRead(2)) {
+        this->error = true;
+        return;
+    }
+
+    buffer[this->offset] = (unsigned char) value >> 8;
+    buffer[this->offset + 1] = (unsigned char) value;
+
+    this->offset += 2;
+}
+
 void BufferReader::WriteUint32BE(uint32_t value) {
     if (this->error || !this->CheckRead(4)) {
         this->error = true;
         return;
     }
 
-    memcpy(&buffer[this->offset], &value, 4);
+    buffer[this->offset] = (unsigned char) value >> 24;
+    buffer[this->offset + 1] = (unsigned char) value >> 16;
+    buffer[this->offset + 2] = (unsigned char) value >> 8;
+    buffer[this->offset + 3] = (unsigned char) value;
 
     this->offset += 4;
+}
+
+void BufferReader::Write(char* buf, size_t length) {
+    if (this->error || !this->CheckRead(length)) {
+        this->error = true;
+        return;
+    }
+
+    memcpy(&buffer[this->offset], buf, length);
+
+    this->offset += length;
 }
 
 void BufferReader::Skip(size_t count) {
