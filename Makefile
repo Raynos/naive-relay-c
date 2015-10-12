@@ -8,7 +8,7 @@ UV_PATH=$(shell pwd)/deps/libuv
 UV_LIB=$(UV_PATH)/out/Debug/libuv.a
 
 BUFFER_READER_PATH=$(shell pwd)/deps/buffer-reader
-BUFFER_READER_LIB=$(BUFFER_READER_PATH)/buffer-reader.cc
+BUFFER_READER_LIB=$(BUFFER_READER_PATH)/buffer-reader.o
 
 LDLIBS=$(UV_LIB) $(BUFFER_READER_LIB)
 
@@ -20,6 +20,9 @@ all: $(EXECUTABLE)
 
 $(EXECUTABLE): $(APP_FILES) $(LDLIBS)
 	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $(EXECUTABLE)
+
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(UV_LIB):
 	cd $(UV_PATH) && \
@@ -33,7 +36,7 @@ run: relay.out
 clean:
 	rm -f $(EXECUTABLE)
 	rm -f *.o
-	# rm -f $(BUFFER_READER_LIB)
+	rm -f $(BUFFER_READER_LIB)
 
 clean_deps:
 	rm -f $(UV_LIB)
