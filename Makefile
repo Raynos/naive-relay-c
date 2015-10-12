@@ -2,25 +2,28 @@
 CXX=c++
 CXXFLAGS=-Wall -Werror -Wextra -std=c++11 -pedantic -g
 LDFLAGS=-pthread
+RM=rm -f
 
 # Third party code
 UV_PATH=$(shell pwd)/deps/libuv
 UV_LIB=$(UV_PATH)/out/Debug/libuv.a
 
 BUFFER_READER_PATH=$(shell pwd)/deps/buffer-reader
+BUFFER_READER_SRC=$(BUFFER_READER_PATH)/buffer-reader.cc
 BUFFER_READER_LIB=$(BUFFER_READER_PATH)/buffer-reader.o
 
-LDLIBS=$(UV_LIB) $(BUFFER_READER_LIB)
+LDLIBS=$(BUFFER_READER_LIB) $(UV_LIB)
 
 # My code
-SOURCES=$(filter-out main.cc, $(wildcard *.cc))
+SOURCES=$(wildcard *.cc)
 OBJECTS=$(SOURCES:.cc=.o)
 EXECUTABLE=relay.out
 
-all: $(EXECUTABLE)
+all:; @$(MAKE) _all -j8
+_all: $(EXECUTABLE)
 
-$(EXECUTABLE): main.o $(OBJECTS) $(LDLIBS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+$(EXECUTABLE): $(OBJECTS) $(LDLIBS)
+	$(CXX) $(LDFLAGS) $^ -o $@
 
 %.o: %.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -31,15 +34,19 @@ $(UV_LIB):
 	./gyp_uv.py -f make && \
 	$(MAKE) -C ./out
 
+$(BUFFER_READER_LIB): $(BUFFER_READER_SRC)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 run: $(EXECUTABLE)
 	./$(EXECUTABLE)
 
 clean:
-	rm -f $(EXECUTABLE)
-	rm -f *.o
-	rm -f $(BUFFER_READER_LIB)
+	$(RM) *.o
+	$(RM) $(BUFFER_READER_LIB)
+	$(RM) $(EXECUTABLE)
 
 clean_deps:
-	rm -f $(UV_LIB)
+	make clean
+	$(RM) $(UV_LIB)
 
-.PHONY: run clean
+.PHONY: run clean _all
