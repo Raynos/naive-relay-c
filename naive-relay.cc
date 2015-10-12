@@ -47,9 +47,24 @@ void NaiveRelay::listen(int serverPort, const char *serverHost) {
 
 
 void NaiveRelay::handleFrame(LazyFrame* lazyFrame) {
-    (void) lazyFrame;
+    int frameType = (int) lazyFrame->readFrameType();
 
-    // TODO do a thing with lazyFrame
+    switch (frameType) {
+        case 0x01:
+            this->handleInitRequest(lazyFrame);
+            // TODO free lazyFrame
+            break;
+
+        case 0x02:
+            this->handleInitResponse(lazyFrame);
+            // TODO free lazyFrame
+            break;
+
+        default:
+            // TODO do a thing with lazyFrame
+            std::cerr << lazyFrame->toString() << std::endl;
+            break;
+    }
 }
 
 void NaiveRelay::onNewConnection() {

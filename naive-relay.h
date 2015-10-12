@@ -23,6 +23,9 @@ private:
     uv_loop_t *loop;
     std::vector<RelayConnection*> connections;
 
+    void handleInitRequest(LazyFrame* frame);
+    void handleInitResponse(LazyFrame* frame);
+
 };
 
 }
