@@ -14,12 +14,13 @@ LDLIBS=$(UV_LIB) $(BUFFER_READER_LIB)
 
 # My code
 SOURCES=$(filter-out main.cc, $(wildcard *.cc))
+OBJECTS=$(SOURCES:.cc=.o)
 EXECUTABLE=relay.out
 
 all: $(EXECUTABLE)
 
-$(EXECUTABLE): main.cc $(SOURCES) $(LDLIBS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $(EXECUTABLE)
+$(EXECUTABLE): main.o $(OBJECTS) $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
 
 %.o: %.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -30,8 +31,8 @@ $(UV_LIB):
 	./gyp_uv.py -f make && \
 	$(MAKE) -C ./out
 
-run: relay.out
-	./relay.out
+run: $(EXECUTABLE)
+	./$(EXECUTABLE)
 
 clean:
 	rm -f $(EXECUTABLE)
