@@ -138,7 +138,7 @@ void FrameParser::readFrameLength(char* buf, int offset, size_t length) {
     this->frameLength = this->reader.ReadUint16BE();
 
     if (this->reader.Error()) {
-        assert("Out of bounds read into buffer");
+        assert(false && "Out of bounds read into buffer");
     }
 
     if (this->frameLength <= 16) {

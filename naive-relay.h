@@ -10,20 +10,34 @@ namespace tchannel {
 
 class NaiveRelay {
 public:
-    NaiveRelay(uv_loop_t *loop, std::vector<std::string> destinations);
+    NaiveRelay(
+        uv_loop_t* loop,
+        std::vector<struct sockaddr_in> destinations,
+        int serverPort,
+        const char* serverHost
+    );
     ~NaiveRelay();
 
-    void listen(int serverPort, const char *serverHost);
+    void listen();
     void onNewConnection();
     void handleFrame(RelayConnection* conn, LazyFrame* lazyFrame);
 
     std::string hostPort;
+    int serverPort;
+    const char* serverHost;
+    tchannel::LazyFramePool framePool;
 
 private:
     uv_tcp_t *server;
     uv_loop_t *loop;
-    std::vector<RelayConnection*> connections;
-    std::vector<std::string> destinations;
+    std::vector<RelayConnection*> inConnections;
+    std::vector<struct sockaddr_in> destinations;
+    std::vector<RelayConnection*> outConnections;
+    uint roundRobinIndex;
+
+    void forwardCallRequest(LazyFrame* frame);
+    void forwardCallResponse(LazyFrame* frame);
+    RelayConnection* chooseConn();
 
 };
 

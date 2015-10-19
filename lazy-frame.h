@@ -36,15 +36,15 @@ public:
     uint8_t readFrameType();
     void writeId(uint32_t newId);
 
+    uint32_t oldId;
     RelayConnection* conn;
-
-private:
     char* frameBuffer;
     size_t frameBufferLength;
+
+private:
     Buffer::BufferReader reader;
     uint32_t newId;
 
-    uint32_t oldId;
     bool oldIdCached;
 
     uint8_t frameType;

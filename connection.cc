@@ -1,7 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+#include <iostream>
+#include <cstring>
+#include <cassert>
 #include "connection.h"
 #include "naive-relay.h"
 #include "deps/libuv/include/uv.h"
@@ -9,17 +8,14 @@
 
 namespace tchannel {
 
-typedef struct {
-    uv_write_t req;
-    uv_buf_t buf;
-} write_req_t;
-
 class BufferSlice;
 
 static size_t initFrameSize(std::string hostPort);
 static void alloc_cb(uv_handle_t *handle, size_t size, uv_buf_t *buf);
 static void on_conn_read(uv_stream_t *tcp, ssize_t nread, const uv_buf_t *buf);
+static void on_connect_cb(uv_connect_t* req, int status);
 static void on_init_write_cb(uv_write_t* req, int status);
+static void on_unsafe_write_cb(uv_write_t* req, int status);
 static int writeFrameHeader(
     char* buf, int offset, size_t bufferLength, int type, int id
 );
@@ -28,15 +24,16 @@ static int writeInitBody(
 );
 
 RelayConnection::RelayConnection(
-    uv_loop_t *loop, tchannel::NaiveRelay *relay, std::string direction
+    uv_loop_t *loop, NaiveRelay *relay, ConnectionDirection direction
 ) {
     this->loop = loop;
     this->direction = direction;
     this->relay = relay;
+    this->connState = ConnectionState::INITIAL;
+    this->reqMap = std::unordered_map<int, LazyFrame*>();
 
     this->idCounter = 0;
     this->parser = tchannel::FrameParser();
-    this->framePool = tchannel::LazyFramePool();
 
     // TODO remove noob malloc
     this->socket = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
@@ -50,12 +47,16 @@ RelayConnection::RelayConnection(
         (char*) malloc(this->initBufferLength), this->initBufferLength
     );
     this->initWriteReq->req.data = (void*) this;
+
+    this->connectReq = (uv_connect_t*) malloc(sizeof(uv_connect_t));
+    this->connectReq->data = (void*) this;
 }
 
 RelayConnection::~RelayConnection() {
     free(this->socket);
 
     // TODO delete initWriteReq() ?
+    // TODO delete connectReq() ?
 }
 
 void RelayConnection::accept(uv_stream_t *server) {
@@ -66,17 +67,42 @@ void RelayConnection::accept(uv_stream_t *server) {
 
     r = uv_accept(server, (uv_stream_t*) this->socket);
     if (r) {
-        fprintf(stderr, "Could not accept socket %d\n", r);
+        std::cerr << "Could not accept socket " << r << std::endl;
         uv_close((uv_handle_t*) this->socket, nullptr);
     } else {
-        fprintf(stderr, "Got incoming socket\n");
+        std::cerr << "Got incoming socket" << std::endl;
+        this->connState = ConnectionState::INITIALIZING;
     }
+}
+
+void RelayConnection::connect(struct sockaddr_in addr) {
+    int r;
+
+    r = uv_tcp_init(this->loop, this->socket);
+    assert(!r && "could not init outgoing socket");
+
+    this->connState = ConnectionState::CONNECTING;
+    r = uv_tcp_connect(
+        this->connectReq, this->socket, (const struct sockaddr*) &addr, on_connect_cb
+    );
+    assert(!r && "Could not connect to addr");
+}
+
+void RelayConnection::onConnect(int status) {
+    assert(!status && "failed to connect to destination");
+
+    this->connState = ConnectionState::INITIALIZING;
+    free(this->connectReq);
+
+    this->readStart();
 }
 
 void RelayConnection::readStart() {
     uv_read_start((uv_stream_t*) this->socket, alloc_cb, on_conn_read);
 
-    /* TODO if this->direction === out then sendInitRequest() */
+    if (this->direction == ConnectionDirection::OUTGOING) {
+        this->sendInitRequest();
+    }
 }
 
 void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
@@ -85,7 +111,8 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
 
     if (nread == UV_EOF) {
         uv_close((uv_handle_t*) this->socket, nullptr);
-        fprintf(stderr, "Got unexpected EOF on incoming socket\n");
+        std::cerr << "Got unexpected EOF on " << (int) this->direction <<
+            " socket" << std::endl;
     } else if (nread > 0) {
         this->parser.write(buf->base, (size_t) nread);
 
@@ -93,18 +120,15 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
             frameBuffer = this->parser.getFrameBuffer();
 
             // TODO release back to pool
-            lazyFrame = this->framePool.acquire(
+            lazyFrame = this->relay->framePool.acquire(
                 frameBuffer.buf, frameBuffer.length, this
             );
             this->relay->handleFrame(this, lazyFrame);
         }
     } else {
         uv_close((uv_handle_t*) this->socket, nullptr);
-        fprintf(
-            stderr,
-            "Got unexpected error on reading incoming socket %d\n",
-            (int) nread
-        );
+        std::cerr << "Got unexpected error on reading incoming socket "
+            << nread << std::endl;
     }
 
     if (buf->base) {
@@ -113,17 +137,60 @@ void RelayConnection::onSocketRead(ssize_t nread, const uv_buf_t *buf) {
 }
 
 void RelayConnection::handleInitRequest(LazyFrame* frame) {
-    (void) frame;
-
     this->sendInitResponse(frame);
 
     // TODO self.flushPending();
+    this->connState = ConnectionState::INITIALIZED;
 }
 
 void RelayConnection::handleInitResponse(LazyFrame* frame) {
     (void) frame;
 
-    assert("not implemented");
+    // TODO self.flushPending();
+    this->connState = ConnectionState::INITIALIZING;
+}
+
+// TODO luuuuuuuuuuuuul unsafe
+void RelayConnection::unsafeWriteBuffer(char* buffer, size_t length) {
+    uv_write_t* writeReq = (uv_write_t*) malloc(sizeof(uv_write_t));
+    uv_buf_t buf = uv_buf_init(buffer, length);
+
+    std::cerr << "unsafeWriteBuffer: " <<
+        std::string(buffer, length) << std::endl;
+
+    uv_write(
+        writeReq, (uv_stream_t*) this->socket, &buf, 1, on_unsafe_write_cb
+    );
+}
+
+void RelayConnection::sendInitRequest() {
+    int offset = 0;
+    offset = writeFrameHeader(
+        this->initWriteReq->buf.base,
+        offset,
+        this->initBufferLength,
+        0x01,
+        this->allocateId()
+    );
+    offset = writeInitBody(
+        this->initWriteReq->buf.base,
+        offset,
+        this->initBufferLength,
+        this->relay->hostPort
+    );
+
+    // std::cerr << "Writing InitRequest len: " <<
+    //     this->initBufferLength << " InitRequest body: " <<
+    //     std::string(this->initWriteReq->buf.base, this->initBufferLength) <<
+    //     std::endl;
+
+    uv_write(
+        (uv_write_t*) this->initWriteReq,
+        (uv_stream_t*) this->socket,
+        &(this->initWriteReq->buf),
+        1,
+        on_init_write_cb
+    );
 }
 
 void RelayConnection::sendInitResponse(LazyFrame* frame) {
@@ -141,6 +208,11 @@ void RelayConnection::sendInitResponse(LazyFrame* frame) {
         this->initBufferLength,
         this->relay->hostPort
     );
+
+    // std::cerr << "Writing InitResponse: " <<
+    // this->initBufferLength << " InitResponse body: " <<
+    //     std::string(this->initWriteReq->buf.base, this->initBufferLength) <<
+    //     std::endl;
 
     uv_write(
         (uv_write_t*) this->initWriteReq,
@@ -216,7 +288,12 @@ static int writeInitBody(
 
     char processTitle[512];
     uv_get_process_title(processTitle, sizeof(processTitle));
-    size_t processTitleLength = strlen(processTitle);
+
+    size_t processTitleLength = std::strlen(processTitle);
+
+    // std::cerr << "Got process title: " <<
+    //     std::string(processTitle, processTitleLength) << std::endl;
+
     // processName value length
     reader.WriteUint16BE((uint16_t) processTitleLength);
     // processName value value
@@ -228,8 +305,11 @@ static int writeInitBody(
 static size_t initFrameSize(std::string hostPort) {
     size_t bufferLength = 0;
 
-    char buffer[512];
-    uv_get_process_title(buffer, sizeof(buffer));
+    char processTitle[512];
+    uv_get_process_title(processTitle, sizeof(processTitle));
+
+    // std::cerr << "Got process title: " <<
+    //     std::string(processTitle, std::strlen(processTitle)) << std::endl;
 
     bufferLength += 16; // frameHeader:16
     bufferLength += 2; // version:2
@@ -237,7 +317,7 @@ static size_t initFrameSize(std::string hostPort) {
     bufferLength += 2 + std::string("host_port").size(); // hostPortKey
     bufferLength += 2 + hostPort.size(); // hostPortValue
     bufferLength += 2 + std::string("process_name").size();
-    bufferLength += 2 + strlen(buffer);
+    bufferLength += 2 + std::strlen(processTitle);
 
     return bufferLength;
 }
@@ -249,17 +329,29 @@ static void alloc_cb(uv_handle_t* /*handle*/, size_t size, uv_buf_t*buf) {
 }
 
 static void on_conn_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
-    RelayConnection* conn;
-    conn = (RelayConnection*) tcp->data;
+    RelayConnection* conn = (RelayConnection*) tcp->data;
 
     conn->onSocketRead(nread, buf);
 }
 
 static void on_init_write_cb(uv_write_t* req, int status) {
-    RelayConnection* conn;
-    conn = (RelayConnection*) req->data;
+    RelayConnection* conn = (RelayConnection*) req->data;
 
     conn->initWriteComplete(status);
+}
+
+static void on_connect_cb(uv_connect_t* req, int status) {
+    RelayConnection* conn = (RelayConnection*) req->data;
+
+    conn->onConnect(status);
+}
+
+static void on_unsafe_write_cb(uv_write_t* req, int status) {
+    (void) req;
+
+    std::cerr << "Failed to write: " << uv_strerror(status) << std::endl;
+
+    assert(!status && "unsafe write failed");
 }
 
 }

@@ -13,20 +13,38 @@ namespace tchannel {
 
 static void on_connection_cb(uv_stream_t *server, int status);
 
-NaiveRelay::NaiveRelay(uv_loop_t *loop, std::vector<std::string> destinations) {
+NaiveRelay::NaiveRelay(
+    uv_loop_t *loop, std::vector<struct sockaddr_in> destinations,
+    int serverPort, const char* serverHost
+) {
     this->destinations = destinations;
     this->loop = loop;
+    this->serverPort = serverPort;
+    this->serverHost = serverHost;
+    this->roundRobinIndex = 0;
+
+    std::stringstream ss;
+    ss << serverHost << ":" << serverPort;
+    this->hostPort = ss.str();
 
     // TODO remove noob malloc
     this->server = (uv_tcp_t*) malloc(sizeof(uv_tcp_t));
     this->server->data = (void*) this;
+
+    for (struct sockaddr_in addr : this->destinations) {
+        RelayConnection* conn = new RelayConnection(
+            this->loop, this, ConnectionDirection::OUTGOING
+        );
+        conn->connect(addr);
+        this->outConnections.push_back(conn);
+    }
 }
 
 NaiveRelay::~NaiveRelay() {
     free(this->server);
 }
 
-void NaiveRelay::listen(int serverPort, const char *serverHost) {
+void NaiveRelay::listen() {
     int r;
 
     r = uv_tcp_init(this->loop, this->server);
@@ -34,12 +52,8 @@ void NaiveRelay::listen(int serverPort, const char *serverHost) {
 
     struct sockaddr_in serverAddress;
 
-    r = uv_ip4_addr(serverHost, serverPort, &serverAddress);
+    r = uv_ip4_addr(this->serverHost, this->serverPort, &serverAddress);
     assert(!r && "could not allocate address");
-
-    std::stringstream ss;
-    ss << serverHost << ":" << serverPort;
-    this->hostPort = ss.str();
 
     r = uv_tcp_bind(this->server, (struct sockaddr*) &serverAddress, 0);
     assert(!r && "could not bind to server socket");
@@ -55,12 +69,24 @@ void NaiveRelay::handleFrame(RelayConnection* conn, LazyFrame* lazyFrame) {
     switch (frameType) {
         case 0x01:
             conn->handleInitRequest(lazyFrame);
-            // TODO free lazyFrame
+            this->framePool.release(lazyFrame);
+            // TODO release lazyFrame->frameBuffer
             break;
 
         case 0x02:
             conn->handleInitResponse(lazyFrame);
-            // TODO free lazyFrame
+            this->framePool.release(lazyFrame);
+            // TODO release lazyFrame->frameBuffer
+            break;
+
+        case 0x03:
+            this->forwardCallRequest(lazyFrame);
+            // TODO release lazyFrame
+            break;
+
+        case 0x04:
+            this->forwardCallResponse(lazyFrame);
+            // TODO release lazyFrame
             break;
 
         default:
@@ -70,13 +96,59 @@ void NaiveRelay::handleFrame(RelayConnection* conn, LazyFrame* lazyFrame) {
     }
 }
 
+void NaiveRelay::forwardCallRequest(LazyFrame* lazyFrame) {
+    lazyFrame->readId();
+
+    RelayConnection* destConn = this->chooseConn();
+    int outId = destConn->allocateId();
+
+    lazyFrame->writeId(outId);
+
+    auto pair = std::pair<int, LazyFrame*>(outId, lazyFrame);
+    std::cerr << "Insert into map" << std::endl;
+    destConn->reqMap.insert(pair);
+    std::cerr << "Get rekt" << std::endl;
+
+    destConn->unsafeWriteBuffer(
+        lazyFrame->frameBuffer, lazyFrame->frameBufferLength
+    );
+}
+
+void NaiveRelay::forwardCallResponse(LazyFrame* lazyFrame) {
+    int frameId = lazyFrame->readId();
+    RelayConnection* srcConn = lazyFrame->conn;
+
+    assert(srcConn->reqMap.find(frameId) != srcConn->reqMap.end() && "should contain id");
+
+    LazyFrame* reqFrame = srcConn->reqMap.at(frameId);
+    srcConn->reqMap.erase(frameId);
+
+    lazyFrame->writeId(reqFrame->oldId);
+
+    reqFrame->conn->unsafeWriteBuffer(
+        lazyFrame->frameBuffer, lazyFrame->frameBufferLength
+    );
+
+    // TODO Free both lazyFrames
+}
+
+RelayConnection* NaiveRelay::chooseConn() {
+    RelayConnection* conn = this->outConnections.at(this->roundRobinIndex);
+    this->roundRobinIndex++;
+    if (this->roundRobinIndex == this->outConnections.size()) {
+        this->roundRobinIndex = 0;
+    }
+
+    return conn;
+}
+
 void NaiveRelay::onNewConnection() {
     tchannel::RelayConnection* conn;
 
     // TODO remove noob new connection
-    // TODO free() on close.
-    conn = new RelayConnection(this->loop, this, "in");
-    this->connections.push_back(conn);
+    // TODO delete on close.
+    conn = new RelayConnection(this->loop, this, ConnectionDirection::INCOMING);
+    this->inConnections.push_back(conn);
 
     conn->accept((uv_stream_t*) this->server);
     conn->readStart();

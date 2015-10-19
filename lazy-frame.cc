@@ -1,4 +1,5 @@
-#include <assert.h>
+#include <iostream>
+#include <cassert>
 #include "lazy-frame.h"
 
 namespace tchannel {
@@ -15,13 +16,18 @@ LazyFramePool::LazyFramePool() {
         this->frames[i].init();
         this->availableFrames[i] = &this->frames[i];
     }
+
+    // std::cerr << "DEBUG: Build a LazyFramePool: " <<
+    //     this->availableFrames.size() << 
+    //     " addr: " << this << std::endl;
 }
 
 LazyFrame* LazyFramePool::acquire(
     char* frameBuffer, size_t size, RelayConnection* conn
 ) {
+    // std::cerr << "DEBUG: alloc frame, addr: " << this << std::endl;
     if (this->availableFrames.size() == 0) {
-        assert("LazyFramePool is empty");
+        assert(false && "LazyFramePool is empty");
         return nullptr;
     }
 
@@ -76,7 +82,7 @@ uint32_t LazyFrame::readId() {
     this->reader.offset = ID_OFFSET;
     uint32_t oldId = this->reader.ReadUint32BE();
     if (this->reader.Error()) {
-        assert("Out of bounds read for id");
+        assert(false && "Out of bounds read for id");
         return 0;
     }
 
@@ -93,7 +99,7 @@ uint8_t LazyFrame::readFrameType() {
     this->reader.offset = TYPE_OFFSET;
     uint8_t frameType = this->reader.ReadUint8();
     if (this->reader.Error()) {
-        assert("Out of bounds read for frame type");
+        assert(false && "Out of bounds read for frame type");
         return 0;
     }
 
@@ -107,7 +113,7 @@ void LazyFrame::writeId(uint32_t newId) {
 
     this->reader.WriteUint32BE(newId);
     if (this->reader.Error()) {
-        assert("Out of bounds write for new id");
+        assert(false && "Out of bounds write for new id");
         return;
     }
 
