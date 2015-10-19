@@ -13,7 +13,8 @@ namespace tchannel {
 
 static void on_connection_cb(uv_stream_t *server, int status);
 
-NaiveRelay::NaiveRelay(uv_loop_t *loop) {
+NaiveRelay::NaiveRelay(uv_loop_t *loop, std::vector<std::string> destinations) {
+    this->destinations = destinations;
     this->loop = loop;
 
     // TODO remove noob malloc
@@ -39,8 +40,6 @@ void NaiveRelay::listen(int serverPort, const char *serverHost) {
     std::stringstream ss;
     ss << serverHost << ":" << serverPort;
     this->hostPort = ss.str();
-
-    // sprintf(this->hostPort, "%s:%d", serverHost, serverPort);
 
     r = uv_tcp_bind(this->server, (struct sockaddr*) &serverAddress, 0);
     assert(!r && "could not bind to server socket");

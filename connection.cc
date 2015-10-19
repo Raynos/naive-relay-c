@@ -122,6 +122,8 @@ void RelayConnection::handleInitRequest(LazyFrame* frame) {
 
 void RelayConnection::handleInitResponse(LazyFrame* frame) {
     (void) frame;
+
+    assert("not implemented");
 }
 
 void RelayConnection::sendInitResponse(LazyFrame* frame) {

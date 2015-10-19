@@ -39,7 +39,7 @@ $(BUFFER_READER_LIB): $(BUFFER_READER_SRC)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 run: $(EXECUTABLE)
-	./$(EXECUTABLE)
+	./$(EXECUTABLE) 0.0.0.0 7000 "127.0.0.1:3000" 0
 
 clean:
 	$(RM) *.o

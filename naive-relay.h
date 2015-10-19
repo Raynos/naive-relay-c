@@ -10,7 +10,7 @@ namespace tchannel {
 
 class NaiveRelay {
 public:
-    NaiveRelay(uv_loop_t *loop);
+    NaiveRelay(uv_loop_t *loop, std::vector<std::string> destinations);
     ~NaiveRelay();
 
     void listen(int serverPort, const char *serverHost);
@@ -23,6 +23,7 @@ private:
     uv_tcp_t *server;
     uv_loop_t *loop;
     std::vector<RelayConnection*> connections;
+    std::vector<std::string> destinations;
 
 };
 
