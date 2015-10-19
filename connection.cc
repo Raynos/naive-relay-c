@@ -155,8 +155,8 @@ void RelayConnection::unsafeWriteBuffer(char* buffer, size_t length) {
     uv_write_t* writeReq = (uv_write_t*) malloc(sizeof(uv_write_t));
     uv_buf_t buf = uv_buf_init(buffer, length);
 
-    std::cerr << "unsafeWriteBuffer: " <<
-        std::string(buffer, length) << std::endl;
+    // std::cerr << "unsafeWriteBuffer: " <<
+    //     std::string(buffer, length) << std::endl;
 
     uv_write(
         writeReq, (uv_stream_t*) this->socket, &buf, 1, on_unsafe_write_cb
@@ -349,7 +349,9 @@ static void on_connect_cb(uv_connect_t* req, int status) {
 static void on_unsafe_write_cb(uv_write_t* req, int status) {
     (void) req;
 
-    std::cerr << "Failed to write: " << uv_strerror(status) << std::endl;
+    if (status) {
+        std::cerr << "Failed to write: " << uv_strerror(status) << std::endl;
+    }
 
     assert(!status && "unsafe write failed");
 }

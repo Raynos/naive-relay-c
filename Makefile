@@ -16,6 +16,7 @@ BUFFER_READER_LIB=$(BUFFER_READER_PATH)/buffer-reader.o
 LDLIBS=$(BUFFER_READER_LIB) $(UV_LIB)
 
 # My code
+HEADERS=$(wildcard *.h)
 SOURCES=$(wildcard *.cc)
 OBJECTS=$(SOURCES:.cc=.o)
 EXECUTABLE=relay.out
@@ -26,7 +27,7 @@ _all: $(EXECUTABLE)
 $(EXECUTABLE): $(OBJECTS) $(LDLIBS)
 	$(CXX) $(LDFLAGS) $^ -o $@
 
-%.o: %.cc
+%.o: %.cc $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(UV_LIB):

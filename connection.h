@@ -44,6 +44,7 @@ public:
     ConnectionState connState;
     std::unordered_map<int, LazyFrame*> reqMap;
 
+
 private:
     struct write_req_t {
         uv_write_t req;

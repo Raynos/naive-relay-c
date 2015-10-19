@@ -105,9 +105,7 @@ void NaiveRelay::forwardCallRequest(LazyFrame* lazyFrame) {
     lazyFrame->writeId(outId);
 
     auto pair = std::pair<int, LazyFrame*>(outId, lazyFrame);
-    std::cerr << "Insert into map" << std::endl;
     destConn->reqMap.insert(pair);
-    std::cerr << "Get rekt" << std::endl;
 
     destConn->unsafeWriteBuffer(
         lazyFrame->frameBuffer, lazyFrame->frameBufferLength
