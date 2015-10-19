@@ -97,7 +97,8 @@ void NaiveRelay::handleFrame(RelayConnection* conn, LazyFrame* lazyFrame) {
 }
 
 void NaiveRelay::forwardCallRequest(LazyFrame* lazyFrame) {
-    lazyFrame->readId();
+    int inId = lazyFrame->readId();
+    (void) inId;
 
     RelayConnection* destConn = this->chooseConn();
     int outId = destConn->allocateId();
@@ -106,6 +107,9 @@ void NaiveRelay::forwardCallRequest(LazyFrame* lazyFrame) {
 
     auto pair = std::pair<int, LazyFrame*>(outId, lazyFrame);
     destConn->reqMap.insert(pair);
+
+    // std::cerr << "Forwarding Call Req from: " <<
+    //     inId << " to: " << outId << std::endl;
 
     destConn->unsafeWriteBuffer(
         lazyFrame->frameBuffer, lazyFrame->frameBufferLength
@@ -123,6 +127,9 @@ void NaiveRelay::forwardCallResponse(LazyFrame* lazyFrame) {
 
     lazyFrame->writeId(reqFrame->oldId);
 
+    // std::cerr << "Forwarding Call Res from: " <<
+    //     frameId << " to: " << reqFrame->oldId << std::endl;
+
     reqFrame->conn->unsafeWriteBuffer(
         lazyFrame->frameBuffer, lazyFrame->frameBufferLength
     );
@@ -131,6 +138,7 @@ void NaiveRelay::forwardCallResponse(LazyFrame* lazyFrame) {
 }
 
 RelayConnection* NaiveRelay::chooseConn() {
+    // RelayConnection* conn = this->outConnections.at(0);
     RelayConnection* conn = this->outConnections.at(this->roundRobinIndex);
     this->roundRobinIndex++;
     if (this->roundRobinIndex == this->outConnections.size()) {

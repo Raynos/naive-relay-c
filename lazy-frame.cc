@@ -6,7 +6,7 @@ namespace tchannel {
 
 const int ID_OFFSET = 4;
 const int TYPE_OFFSET = 2;
-const int FRAME_POOL_SIZE = 1000;
+const int FRAME_POOL_SIZE = 100000;
 
 LazyFramePool::LazyFramePool() {
     this->frames = std::vector<LazyFrame>(FRAME_POOL_SIZE);
