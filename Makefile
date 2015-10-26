@@ -28,7 +28,7 @@ $(EXECUTABLE): $(OBJECTS) $(LDLIBS)
 	$(CXX) $(LDFLAGS) $^ -o $@
 
 %.o: %.cc
-	$(CXX) -MMD -MF $(patsubst %.o,%.d,$@) $(CXXFLAGS) -c $< -o $@
+	$(CXX) -MMD -MP -MF $(patsubst %.o,%.d,$@) $(CXXFLAGS) -c $< -o $@
 -include $(DEPS)
 
 $(UV_LIB):
