@@ -16,9 +16,9 @@ BUFFER_READER_LIB=$(BUFFER_READER_PATH)/buffer-reader.o
 LDLIBS=$(BUFFER_READER_LIB) $(UV_LIB)
 
 # My code
-HEADERS=$(wildcard *.h)
 SOURCES=$(wildcard *.cc)
 OBJECTS=$(SOURCES:.cc=.o)
+DEPS=$(OBJECTS:.o=.d)
 EXECUTABLE=relay.out
 
 all:; @$(MAKE) _all -j$(CORES)
@@ -27,8 +27,9 @@ _all: $(EXECUTABLE)
 $(EXECUTABLE): $(OBJECTS) $(LDLIBS)
 	$(CXX) $(LDFLAGS) $^ -o $@
 
-%.o: %.cc $(HEADERS)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+%.o: %.cc
+	$(CXX) -MMD -MF $(patsubst %.o,%.d,$@) $(CXXFLAGS) -c $< -o $@
+-include $(DEPS)
 
 $(UV_LIB):
 	cd $(UV_PATH) && \
